@@ -3,6 +3,27 @@
 在手机上原生访问局域网 / Tailscale 中的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，
 通过 DSH 官方的 HTTP RPC + WebSocket 事件流协议工作，替代移动浏览器访问 dsh web GUI。
 
+## 使用前提：网络要求
+
+**手机必须能访问到运行 DSH 的电脑**，二选一：
+
+1. **同一局域网**：手机和电脑连同一个 WiFi/路由器，用电脑的局域网 IP（如 192.168.x.x）访问
+2. **异地打洞（Tailscale）**：手机和电脑都安装 [Tailscale](https://tailscale.com) 并登录同一账号，
+   用电脑的 Tailscale IP（100.x.x.x）访问——任何网络环境下都能直连，无需公网 IP/端口映射
+
+App 只负责连接，网络打通由上述方式完成。连不上时 App 的连接页会给出排查指引。
+
+## 快速开始
+
+```bash
+# 1. 电脑端：开放 DSH 给局域网/Tailscale 访问（详见下节）
+DSH_PKG_ALLOW_LAN=1 dsh web --host 0.0.0.0 --port 3080 --trusted-host 100.x.x.x
+
+# 2. 手机端：安装 App（Android APK），打开后输入电脑地址
+#    例如 http://100.x.x.x:3080 或 http://192.168.1.10:3080
+# 3. 连接成功即进入会话列表（按工作区分组）
+```
+
 ## 功能总览
 
 ### 连接
