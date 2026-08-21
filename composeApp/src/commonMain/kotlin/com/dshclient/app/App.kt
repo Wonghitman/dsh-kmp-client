@@ -3,9 +3,9 @@ package com.dshclient.app
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dshclient.app.designsystem.DshTheme
 import com.dshclient.app.feature.chat.ChatScreen
@@ -21,7 +21,7 @@ fun App() {
     DshTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             val vm: AppViewModel = viewModel { AppViewModel() }
-            val screen by vm.screen.collectAsState()
+            val screen by vm.screen.collectAsStateWithLifecycle()
             when (val s = screen) {
                 is Screen.Connect -> ConnectScreen(vm)
                 is Screen.Home -> HomeScreen(vm)

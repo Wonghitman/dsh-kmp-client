@@ -1,5 +1,13 @@
 package com.dshclient.app.feature.chat
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,23 +25,25 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,13 +54,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,23 +71,35 @@ import com.dshclient.app.core.model.str
 import com.dshclient.app.data.PendingApproval
 import com.dshclient.app.data.PendingQuestion
 import com.dshclient.app.decodeImageBase64
+import com.dshclient.app.designsystem.extendedColors
 
 /** Deep diving 状态条（与桌面版一致） */
 @Composable
 fun DeepDivingBar(seconds: Long) {
-    Row(
-        Modifier
+    Surface(
+        color = MaterialTheme.extendedColors.runningContainer.copy(alpha = 0.5f),
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 12.dp, vertical = 3.dp),
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            "Deep diving..." + (if (seconds >= 15) " " + formatDuration(seconds) else ""),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.extendedColors.running,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Deep diving..." + (if (seconds >= 15) " " + formatDuration(seconds) else ""),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.extendedColors.onRunningContainer,
+                fontWeight = FontWeight.Medium,
+            )
+        }
     }
 }
 
@@ -101,8 +123,9 @@ fun GoalBar(uiState: ChatUiState) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
         ),
     ) {
         Row(
@@ -110,23 +133,26 @@ fun GoalBar(uiState: ChatUiState) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("🎯", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     uiState.goalObjective ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium,
                 )
                 uiState.goalMaxRounds?.let { max ->
                     val done = uiState.goalRounds ?: 0
-                    androidx.compose.material3.LinearProgressIndicator(
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(
                         progress = { if (max > 0) done.toFloat() / max.toFloat() else 0f },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp)),
+                            .height(4.dp)
+                            .clip(MaterialTheme.shapes.extraSmall),
                     )
+                    Spacer(Modifier.height(2.dp))
                     val rounds = if (done > 0) " · 第 " + done + " 轮" else ""
                     Text(
                         phaseLabel + rounds + " / 上限 " + max,
@@ -142,47 +168,76 @@ fun GoalBar(uiState: ChatUiState) {
 /** 后台任务面板（左滑打开） */
 @Composable
 fun TaskPanel(uiState: ChatUiState, onClose: () -> Unit) {
+    val extended = MaterialTheme.extendedColors
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("后台任务", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f))
+                Text(
+                    "后台任务",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
                 IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
                     Icon(Icons.Default.Close, contentDescription = "关闭", Modifier.size(16.dp))
                 }
             }
             if (uiState.jobs.isEmpty()) {
-                Text("暂无后台任务", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "暂无后台任务",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             uiState.jobs.forEach { job ->
+                val color = when (job.status) {
+                    "running" -> extended.running
+                    "stopping" -> extended.warning
+                    "completed" -> extended.success
+                    "failed" -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.outline
+                }
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val color = when (job.status) {
-                        "running" -> Color(0xFF4CAF50)
-                        "stopping" -> Color(0xFFFF9800)
-                        "completed" -> Color(0xFF2196F3)
-                        "failed" -> Color(0xFFF44336)
-                        else -> Color(0xFF9E9E9E)
-                    }
                     if (job.status == "running") {
-                        CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 2.dp,
+                            color = color,
+                        )
                     } else {
-                        Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(color))
+                        Box(
+                            Modifier
+                                .size(8.dp)
+                                .clip(MaterialTheme.shapes.extraSmall)
+                                .background(color),
+                        )
                     }
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(job.label, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            job.label,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         job.detail?.let {
-                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                     Text(job.status, style = MaterialTheme.typography.labelSmall, color = color)
@@ -205,8 +260,9 @@ fun QueueCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)),
     ) {
         Column(Modifier.padding(10.dp)) {
             Text(
@@ -217,7 +273,9 @@ fun QueueCard(
             )
             items.forEach { item ->
                 Row(
-                    Modifier.fillMaxWidth().padding(top = 6.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val text = item.message.content
@@ -230,7 +288,8 @@ fun QueueCard(
                             .clickable {
                                 editingItem = item
                                 editText = text
-                            },
+                            }
+                            .padding(4.dp),
                     ) {
                         Text(
                             text.ifBlank { "(无文本)" },
@@ -245,7 +304,7 @@ fun QueueCard(
                         )
                     }
                     IconButton(onClick = { onSteer(item.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Send, contentDescription = "立即发送", Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "立即发送", Modifier.size(16.dp))
                     }
                     IconButton(onClick = { onRemove(item.id) }, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Clear, contentDescription = "删除", Modifier.size(16.dp))
@@ -265,6 +324,7 @@ fun QueueCard(
                     value = editText,
                     onValueChange = { editText = it },
                     maxLines = 6,
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth(),
                 )
             },
@@ -305,18 +365,18 @@ fun TurnContextBar(uiState: ChatUiState) {
         )
         if (percent != null) {
             Spacer(Modifier.width(8.dp))
-            androidx.compose.material3.LinearProgressIndicator(
+            LinearProgressIndicator(
                 progress = { percent },
                 modifier = Modifier
                     .width(64.dp)
                     .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
+                    .clip(MaterialTheme.shapes.extraSmall),
                 color = when {
                     percent > 0.85f -> MaterialTheme.colorScheme.error
-                    percent > 0.6f -> MaterialTheme.colorScheme.tertiary
+                    percent > 0.6f -> MaterialTheme.extendedColors.warning
                     else -> MaterialTheme.colorScheme.primary
                 },
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             )
             Spacer(Modifier.width(6.dp))
             Text(
@@ -343,7 +403,7 @@ fun formatTokens(tokens: Long): String {
     }
 }
 
-/** 桌面风输入框：发送/停止内嵌，无内容不显示 */
+/** 桌面风输入框：发送/停止内嵌，平滑切换动画 */
 @Composable
 fun InputBar(
     input: String,
@@ -365,7 +425,6 @@ fun InputBar(
             modifier = Modifier
                 .weight(1f)
                 .onPreviewKeyEvent { event ->
-                    // 回车发送（进入队列），Shift+回车换行
                     if (event.type == KeyEventType.KeyDown &&
                         (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
                         !event.isShiftPressed &&
@@ -377,24 +436,42 @@ fun InputBar(
                         false
                     }
                 },
-            placeholder = { Text("输入消息…") },
+            placeholder = { Text("输入消息…", style = MaterialTheme.typography.bodyMedium) },
             maxLines = 5,
             trailingIcon = {
-                if (running) {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Stop, contentDescription = "停止", tint = MaterialTheme.colorScheme.error)
-                    }
-                } else if (input.isNotBlank() && !sending) {
-                    IconButton(onClick = onSend) {
-                        Icon(
-                            Icons.Default.Send,
-                            contentDescription = "发送",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
+                AnimatedContent(
+                    targetState = if (running) "stop" else if (input.isNotBlank() && !sending) "send" else "none",
+                    transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
+                    label = "input_action_button",
+                ) { state ->
+                    when (state) {
+                        "stop" -> {
+                            IconButton(onClick = onCancel) {
+                                Icon(
+                                    Icons.Default.Stop,
+                                    contentDescription = "停止",
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+                        "send" -> {
+                            IconButton(onClick = onSend) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "发送",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        else -> Box(Modifier.size(48.dp))
                     }
                 }
             },
-            shape = RoundedCornerShape(24.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
         )
     }
 }
@@ -408,7 +485,8 @@ fun ApprovalDialog(
 ) {
     AlertDialog(
         onDismissRequest = { },
-        title = { Text("等待审批") },
+        shape = MaterialTheme.shapes.large,
+        title = { Text("等待审批", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
                 Text("工具请求执行：" + approval.toolName, style = MaterialTheme.typography.bodyMedium)
@@ -441,9 +519,8 @@ fun ApprovalDialog(
     )
 }
 
-// ─────────────────────── 问题弹窗（逐题分步 + 自定义输入，对齐桌面版） ───────────────────────
+// ─────────────────────── 问题弹窗 ───────────────────────
 
-/** 单题草稿 */
 private class DraftState(
     var selected: List<String> = emptyList(),
     var custom: String = "",
@@ -484,7 +561,6 @@ fun QuestionDialog(
             }
             d.skipped = false
         }
-        // 单选直接进入下一题（对齐桌面版）
         if (q.multiSelect != true && index < questions.size - 1) {
             index += 1
         }
@@ -527,7 +603,8 @@ fun QuestionDialog(
 
     AlertDialog(
         onDismissRequest = { },
-        title = { Text("需要你的回答 (" + (index + 1) + "/" + questions.size + ")") },
+        shape = MaterialTheme.shapes.large,
+        title = { Text("需要你的回答 (" + (index + 1) + "/" + questions.size + ")", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
                 Modifier
@@ -545,34 +622,42 @@ fun QuestionDialog(
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.small)
                             .clickable { choose(option.label) }
-                            .padding(vertical = 6.dp),
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
                             Modifier
                                 .size(18.dp)
-                                .clip(RoundedCornerShape(if (q.multiSelect == true) 4.dp else 10.dp))
+                                .clip(RoundedCornerShape(if (q.multiSelect == true) 4.dp else 9.dp))
                                 .background(
                                     if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest,
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (selected) {
-                                Icon(Icons.Default.Check, contentDescription = null, Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary)
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                )
                             }
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(10.dp))
                         Text(option.label, style = MaterialTheme.typography.bodyMedium)
                         option.description?.let {
-                            Text(it, style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                " · " + it,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
-                // 自定义输入（对齐桌面版 customRow）
+                // 自定义输入
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = draft.custom,
@@ -585,12 +670,16 @@ fun QuestionDialog(
                     },
                     placeholder = { Text("其他回答（可选）") },
                     maxLines = 3,
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (error != null) {
                     Spacer(Modifier.height(6.dp))
-                    Text(error.orEmpty(), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error)
+                    Text(
+                        error.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         },
@@ -630,7 +719,8 @@ fun PermissionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("权限模式") },
+        shape = MaterialTheme.shapes.large,
+        title = { Text("权限模式", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
                 Modifier
@@ -649,11 +739,13 @@ fun PermissionDialog(
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.small)
                             .clickable { onSelect(opt.value) }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(selected = selected, onClick = null)
+                        Spacer(Modifier.width(8.dp))
                         Column {
                             Text(opt.name, style = MaterialTheme.typography.bodyMedium)
                             opt.description?.let {
@@ -667,8 +759,11 @@ fun PermissionDialog(
                     }
                 }
                 if (options.isEmpty()) {
-                    Text("暂无可切换的权限预设", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "暂无可切换的权限预设",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         },
@@ -678,7 +773,7 @@ fun PermissionDialog(
     )
 }
 
-// ─────────────────────── 模型选择弹窗（桌面版两级菜单） ───────────────────────
+// ─────────────────────── 模型选择弹窗 ───────────────────────
 
 @Composable
 fun ModelPickerDialog(
@@ -688,14 +783,14 @@ fun ModelPickerDialog(
     onDismiss: () -> Unit,
     onSelect: (String, String, String?) -> Unit,
 ) {
-    // 两级状态：null = 模型列表；非 null = 该模型的思考模式选择
     var pickingEffortFor by remember { mutableStateOf<ModelCatalogModel?>(null) }
 
     if (pickingEffortFor == null) {
-        // ── 第一级：模型列表（按提供商分组） ──
+        // ── 第一级：模型列表 ──
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("选择模型") },
+            shape = MaterialTheme.shapes.large,
+            title = { Text("选择模型", style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(
                     Modifier
@@ -706,12 +801,12 @@ fun ModelPickerDialog(
                     groups.forEach { group ->
                         Text(
                             group.name,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
                         )
                         group.models.forEach { model ->
-                            val selected = current?.provider == group.id && current?.model == model.id
+                            val selected = current?.provider == group.id && current.model == model.id
                             val effortName = modelEffortName(model, current)
                             Row(
                                 Modifier
@@ -724,10 +819,11 @@ fun ModelPickerDialog(
                                             onSelect(group.id, model.id, null)
                                         }
                                     }
-                                    .padding(vertical = 6.dp),
+                                    .padding(vertical = 6.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 RadioButton(selected = selected, onClick = null)
+                                Spacer(Modifier.width(8.dp))
                                 Column {
                                     Text(model.name, style = MaterialTheme.typography.bodyMedium)
                                     if (model.reasoning != null) {
@@ -738,8 +834,11 @@ fun ModelPickerDialog(
                                         )
                                     }
                                     model.description?.let {
-                                        Text(it, style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            it,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
                                 }
                             }
@@ -761,7 +860,7 @@ fun ModelPickerDialog(
             },
         )
     } else {
-        // ── 第二级：思考模式级别（含"提供商默认"） ──
+        // ── 第二级：思考模式选择 ──
         val model = pickingEffortFor!!
         val group = groups.firstOrNull { g -> g.models.any { it.id == model.id } }
         val provider = group?.id ?: ""
@@ -778,7 +877,8 @@ fun ModelPickerDialog(
 
         AlertDialog(
             onDismissRequest = { pickingEffortFor = null },
-            title = { Text("思考模式 · " + model.name) },
+            shape = MaterialTheme.shapes.large,
+            title = { Text("思考模式 · " + model.name, style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(
                     Modifier
@@ -791,21 +891,26 @@ fun ModelPickerDialog(
                         Row(
                             Modifier
                                 .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.small)
                                 .clickable {
                                     onSelect(provider, model.id, effortId)
                                     pickingEffortFor = null
                                 }
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = selected, onClick = null)
+                            Spacer(Modifier.width(8.dp))
                             Text(label, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     reasoning?.efforts?.firstOrNull { it.id == effectiveEffort }?.description?.let { desc ->
                         Spacer(Modifier.height(6.dp))
-                        Text(desc, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            desc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             },
@@ -816,7 +921,7 @@ fun ModelPickerDialog(
     }
 }
 
-/** 模型条目的思考模式标签（如 "思考模式 · 高"） */
+/** 模型条目的思考模式标签 */
 fun modelEffortName(
     model: ModelCatalogModel,
     current: com.dshclient.app.core.model.ModelSelection?,
@@ -835,7 +940,8 @@ fun AttachmentDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(state.name ?: "图片") },
+        shape = MaterialTheme.shapes.large,
+        title = { Text(state.name ?: "图片", style = MaterialTheme.typography.titleLarge) },
         text = {
             Box(
                 Modifier
@@ -845,16 +951,18 @@ fun AttachmentDialog(
             ) {
                 when {
                     state.loading -> CircularProgressIndicator()
-                    state.error != null -> Text("加载失败: " + state.error)
+                    state.error != null -> Text("加载失败: " + state.error, color = MaterialTheme.colorScheme.error)
                     state.imageBase64 != null -> {
                         val bitmap = remember(state.imageBase64) {
                             decodeImageBase64(state.imageBase64)
                         }
                         if (bitmap != null) {
-                            androidx.compose.foundation.Image(
+                            Image(
                                 bitmap = bitmap,
                                 contentDescription = state.name,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium),
                             )
                         } else {
                             Text("图片解码失败")

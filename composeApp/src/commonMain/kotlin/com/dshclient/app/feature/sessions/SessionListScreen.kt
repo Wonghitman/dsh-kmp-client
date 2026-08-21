@@ -1,5 +1,12 @@
 package com.dshclient.app.feature.sessions
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
@@ -31,13 +37,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,24 +52,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dshclient.app.AppViewModel
-import com.dshclient.app.data.DshStore
-import com.dshclient.app.data.SessionListItem
 import com.dshclient.app.core.model.ApiMethods
 import com.dshclient.app.core.model.SessionCreateValue
 import com.dshclient.app.core.model.SessionSearchValue
 import com.dshclient.app.core.model.WorkspaceCreateValue
 import com.dshclient.app.core.model.WorkspaceView
+import com.dshclient.app.data.DshStore
+import com.dshclient.app.data.SessionListItem
+import com.dshclient.app.designsystem.extendedColors
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 /** 一个工作区分组 */
 private data class GroupData(
@@ -74,10 +81,10 @@ private data class GroupData(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionListScreen(vm: AppViewModel, store: DshStore, modifier: Modifier = Modifier) {
-    val sessions by store.sessions.collectAsState()
-    val workspaces by store.workspaces.collectAsState()
-    val archivedIds by store.archivedSessionIds.collectAsState()
-    val sessionJobs by store.sessionJobs.collectAsState()
+    val sessions by store.sessions.collectAsStateWithLifecycle()
+    val workspaces by store.workspaces.collectAsStateWithLifecycle()
+    val archivedIds by store.archivedSessionIds.collectAsStateWithLifecycle()
+    val sessionJobs by store.sessionJobs.collectAsStateWithLifecycle()
     var refreshing by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -123,14 +130,20 @@ fun SessionListScreen(vm: AppViewModel, store: DshStore, modifier: Modifier = Mo
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 88.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             "会话 (" + sessions.size + ")",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = { refresh() }) {
@@ -148,7 +161,11 @@ fun SessionListScreen(vm: AppViewModel, store: DshStore, modifier: Modifier = Mo
                 if (groups.isEmpty()) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
-                            Text("暂无会话，点击右下角新建", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "暂无会话，点击右下角新建",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -206,12 +223,12 @@ fun SessionListScreen(vm: AppViewModel, store: DshStore, modifier: Modifier = Mo
                     }
                 }
             }
-            NewSessionFab(vm, store, workspaces, Modifier.align(Alignment.BottomEnd).padding(24.dp))
+            NewSessionFab(vm, store, workspaces, Modifier.align(Alignment.BottomEnd).padding(20.dp))
         }
     }
 }
 
-/** 分组标题栏：工作区可操作 */
+/** 分组标题栏 */
 @Composable
 private fun GroupHeader(
     title: String,
@@ -234,13 +251,14 @@ private fun GroupHeader(
             .padding(top = 10.dp, bottom = 2.dp)
             .clip(MaterialTheme.shapes.small)
             .clickable { onToggle() }
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             if (collapsed) "▸ " + title else "▾ " + title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
         Text(
@@ -248,8 +266,9 @@ private fun GroupHeader(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .clip(MaterialTheme.shapes.small)
-                .clickable { menuOpen = true },
+                .clip(MaterialTheme.shapes.extraSmall)
+                .clickable { menuOpen = true }
+                .padding(horizontal = 8.dp),
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             DropdownMenuItem(
@@ -268,7 +287,7 @@ private fun GroupHeader(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("删除工作区") },
+                    text = { Text("删除工作区", color = MaterialTheme.colorScheme.error) },
                     onClick = {
                         menuOpen = false
                         confirmDelete = true
@@ -281,12 +300,15 @@ private fun GroupHeader(
     if (renaming) {
         AlertDialog(
             onDismissRequest = { renaming = false },
+            shape = MaterialTheme.shapes.large,
             title = { Text("重命名工作区") },
             text = {
                 OutlinedTextField(
                     value = newTitle,
                     onValueChange = { newTitle = it },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             },
             confirmButton = {
@@ -305,6 +327,7 @@ private fun GroupHeader(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            shape = MaterialTheme.shapes.large,
             title = { Text("删除工作区") },
             text = { Text("删除工作区「" + title + "」？其中的会话将变为未分组。") },
             confirmButton = {
@@ -318,7 +341,7 @@ private fun GroupHeader(
     }
 }
 
-/** 新建 FAB：选工作区建会话 / 直接新建 / 新建工作区 */
+/** 新建 FAB */
 @Composable
 private fun NewSessionFab(
     vm: AppViewModel,
@@ -331,7 +354,12 @@ private fun NewSessionFab(
     val scope = rememberCoroutineScope()
 
     Box(modifier) {
-        FloatingActionButton(onClick = { menuOpen = true }) {
+        FloatingActionButton(
+            onClick = { menuOpen = true },
+            shape = MaterialTheme.shapes.large,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ) {
             Icon(Icons.Default.Add, contentDescription = "新建")
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -378,6 +406,7 @@ private fun NewSessionFab(
         var path by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showNewWorkspace = false },
+            shape = MaterialTheme.shapes.large,
             title = { Text("新建工作区") },
             text = {
                 Column {
@@ -387,6 +416,7 @@ private fun NewSessionFab(
                         value = path,
                         onValueChange = { path = it },
                         singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
                         label = { Text("目录路径") },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -424,77 +454,87 @@ private fun SessionRow(
     val s = item.summary
     val hasRunningJob = jobs.any { it.status == "running" || it.status == "stopping" }
     val hasDoneJob = jobs.isNotEmpty() && !hasRunningJob
-    Column(
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                MaterialTheme.shapes.medium,
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    item.title ?: sessionDisplayName(s),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                // 状态徽章：工作中 / 任务完成
+                if (s.running || hasRunningJob) {
+                    Row(
+                        Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MaterialTheme.extendedColors.runningContainer.copy(alpha = 0.8f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(10.dp),
+                            strokeWidth = 1.5.dp,
+                            color = MaterialTheme.extendedColors.running,
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "工作中",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.extendedColors.onRunningContainer,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                } else if (hasDoneJob) {
+                    Row(
+                        Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MaterialTheme.extendedColors.successContainer.copy(alpha = 0.8f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "✓",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.extendedColors.success,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            "任务完成",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.extendedColors.onSuccessContainer,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    formatTime(s.updatedAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
             Text(
-                item.title ?: sessionDisplayName(s),
-                style = MaterialTheme.typography.bodyLarge,
+                s.cwd ?: (s.agentPreset?.let { "预设: " + it } ?: ""),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            // 状态徽章：工作中 / 任务完成
-            if (s.running || hasRunningJob) {
-                Row(
-                    Modifier
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(10.dp), strokeWidth = 1.5.dp)
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        "工作中",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-            } else if (hasDoneJob) {
-                Row(
-                    Modifier
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "✓",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(3.dp))
-                    Text(
-                        "任务完成",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Spacer(Modifier.width(6.dp))
-            Text(
-                formatTime(s.updatedAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            s.cwd ?: (s.agentPreset?.let { "预设: " + it } ?: ""),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
@@ -506,7 +546,7 @@ private fun sessionDisplayName(s: com.dshclient.app.core.model.SessionSummary): 
 private fun formatTime(epochMs: Long): String {
     if (epochMs <= 0) return ""
     return try {
-        val dt = Instant.fromEpochMilliseconds(epochMs)
+        val dt = kotlin.time.Instant.fromEpochMilliseconds(epochMs)
             .toLocalDateTime(TimeZone.currentSystemDefault())
         dt.hour.toString().padStart(2, '0') + ":" + dt.minute.toString().padStart(2, '0')
     } catch (e: Exception) {
@@ -524,7 +564,6 @@ private fun SessionSearchView(
     onClose: () -> Unit,
 ) {
     var results by remember { mutableStateOf<List<com.dshclient.app.core.model.SessionSearchItem>>(emptyList()) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(query) {
         if (query.isBlank()) {
@@ -546,28 +585,43 @@ private fun SessionSearchView(
 
     Column(Modifier.fillMaxSize()) {
         SearchBar(
-            query = query,
-            onQueryChange = onQueryChange,
-            onSearch = {},
-            active = true,
-            onActiveChange = { if (!it) onClose() },
-            placeholder = { Text("搜索会话内容") },
+            inputField = {
+                SearchBarDefaults.InputField(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    onSearch = {},
+                    expanded = true,
+                    onExpandedChange = { if (!it) onClose() },
+                    placeholder = { Text("搜索会话内容") },
+                )
+            },
+            expanded = true,
+            onExpandedChange = { if (!it) onClose() },
+            shape = MaterialTheme.shapes.large,
             modifier = Modifier.fillMaxWidth().padding(8.dp),
         ) {
-            LazyColumn {
+            LazyColumn(
+                contentPadding = PaddingValues(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 items(results, key = { it.sessionId }) { r ->
-                    Column(
-                        Modifier
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { vm.openChat(r.sessionId) }
-                            .padding(12.dp),
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { vm.openChat(r.sessionId) },
                     ) {
-                        Text(r.snippet, maxLines = 3, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            r.sessionId.take(8),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column(Modifier.padding(12.dp)) {
+                            Text(r.snippet, maxLines = 3, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                r.sessionId.take(8),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
             }
